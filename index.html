@@ -25,16 +25,12 @@
 
     async function init() {
         try {
-            // Přidána tečka pro lepší hledání na GitHub Pages
             const res = await fetch('./mapa.json');
-            if (!res.ok) throw new Error("Soubor nenalezen");
             data = await res.json();
             document.getElementById('st-name').innerText = data.stanice[0].jmeno;
-            log("Mapa úspěšně načtena.");
+            log("Systém ONLINE. Vlaky připraveny k vypravení.");
             gameLoop();
-        } catch (e) { 
-            log("Chyba načítání mapa.json! Zkontroluj název souboru."); 
-        }
+        } catch (e) { log("Chyba načítání mapa.json!"); }
     }
 
     function log(msg) {
@@ -48,64 +44,87 @@
         const s = data.stanice[0];
 
         s.koleje.forEach(k => {
-            ctx.strokeStyle = "#333";
-            ctx.lineWidth = 4;
+            ctx.strokeStyle = "#333"; ctx.lineWidth = 4;
             ctx.beginPath(); ctx.moveTo(k.x1, k.y1); ctx.lineTo(k.x2, k.y2); ctx.stroke();
         });
 
         s.vyhybky.forEach(w => {
-            const activePos = w.targets[w.state];
+            const target = w.targets[w.state];
             ctx.strokeStyle = "#fff";
-            ctx.beginPath(); ctx.moveTo(w.x, w.y); ctx.lineTo(activePos[0], activePos[1]); ctx.stroke();
-            ctx.fillStyle = "#ffaa00";
-            ctx.beginPath(); ctx.arc(w.x, w.y, 5, 0, 7); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(w.x, w.y); ctx.lineTo(target[0], target[1]); ctx.stroke();
+            ctx.fillStyle = "#ffaa00"; ctx.beginPath(); ctx.arc(w.x, w.y, 6, 0, 7); ctx.fill();
         });
 
         s.navestidla.forEach(n => {
             ctx.fillStyle = (n.state === "volno") ? "#00ff00" : "#ff0000";
+            ctx.shadowBlur = 10; ctx.shadowColor = ctx.fillStyle;
             ctx.beginPath(); ctx.arc(n.x, n.y - 20, 8, 0, 7); ctx.fill();
-            ctx.fillStyle = "#fff"; ctx.fillText(n.id, n.x - 10, n.y - 35);
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = "#fff"; ctx.font = "bold 10px Arial";
+            ctx.fillText(n.id, n.x - 15, n.y - 35);
         });
 
         s.vlaky.forEach(v => {
             if(!v.active) return;
-            ctx.fillStyle = "#ffff00";
-            ctx.fillRect(v.x - 15, v.y - 8, 30, 16);
-            ctx.fillStyle = "#000"; ctx.fillText(v.id, v.x - 14, v.y + 3);
+            ctx.fillStyle = v.color;
+            ctx.fillRect(v.x - 20, v.y - 10, 40, 20);
+            ctx.fillStyle = "#000"; ctx.font = "bold 10px Arial";
+            ctx.fillText(v.id, v.x - 18, v.y + 4);
         });
     }
 
     function update() {
         if(!data) return;
         const s = data.stanice[0];
+        
         s.vlaky.forEach(v => {
             if(!v.active) return;
-            // Detekce návěstidla s rezervou, aby vlak hned "nezamrzl"
-            const signal = s.navestidla.find(n => v.x < n.x - 10 && n.x < v.x + 30);
-            
-            if(signal && signal.state === "stoj") {
-                v.currentSpeed = 0;
-            } else {
-                v.currentSpeed = v.speed;
-                if(signal && signal.state === "volno" && v.x > signal.x) {
-                    signal.state = "stoj";
-                    log(`Vlak ${v.id} projel ${signal.id}.`);
+
+            // Logika zastavení před návěstidlem podle směru
+            let canGo = true;
+            s.navestidla.forEach(n => {
+                // Pokud vlak jede doprava (dir: 1) a návěstidlo je před ním
+                if(v.dir === 1 && v.x < n.x - 10 && v.x > n.x - 40 && n.state === "stoj") canGo = false;
+                // Pokud vlak jede doleva (dir: -1) a návěstidlo je před ním
+                if(v.dir === -1 && v.x > n.x + 10 && v.x < n.x + 40 && n.state === "stoj") canGo = false;
+
+                // Shození návěstidla po průjezdu
+                if(n.state === "volno" && Math.abs(v.x - n.x) < 5) {
+                    n.state = "stoj";
+                    log(`Vlak ${v.id} projel návěstidlo ${n.id}.`);
                 }
+            });
+
+            if(canGo) {
+                v.x += v.speed * v.dir;
             }
-            v.x += v.currentSpeed;
-            // Průjezd výhybkami
-            if(v.x > 240 && v.x < 260) v.targetY = (s.vyhybky[0].state === 0) ? 250 : 100;
-            if(v.x > 490 && v.x < 510) v.targetY = (s.vyhybky[1].state === 0) ? 250 : 150;
-            if(v.targetY) v.y += (v.targetY - v.y) * 0.1;
-            if(v.x > v.targetX) v.active = false;
+
+            // Výhybky - plynulé zatáčení
+            if(v.dir === 1) { // Vlak doprava
+                if(v.x > 240 && v.x < 260) v.tY = (s.vyhybky[0].state === 0) ? 250 : 150;
+                if(v.x > 490 && v.x < 510) v.tY = (s.vyhybky[1].state === 0) ? 250 : 100;
+            } else { // Vlak doleva
+                if(v.x < 510 && v.x > 490) v.tY = 250;
+                if(v.x < 260 && v.x > 240) v.tY = 250;
+            }
+            
+            if(v.tY) v.y += (v.tY - v.y) * 0.1;
+
+            // Konec trasy
+            if((v.dir === 1 && v.x > v.targetX) || (v.dir === -1 && v.x < v.targetX)) v.active = false;
         });
     }
 
     function spawnTrain() {
         if(!data) return;
-        const v = data.stanice[0].vlaky[0];
-        v.x = 50; v.y = 250; v.active = true; v.targetY = 250;
-        log("Vlak Os 4712 vyjíždí ze stanice.");
+        // Vypustí oba vlaky
+        data.stanice[0].vlaky.forEach(v => {
+            if (v.dir === 1) { v.x = -50; v.y = 250; }
+            else { v.x = 1050; v.y = 250; }
+            v.active = true;
+            v.tY = 250;
+        });
+        log("VLAKY VYSTAVENY: Os 4712 (Západ) a R 621 (Východ).");
     }
 
     canvas.addEventListener('click', (e) => {
@@ -113,25 +132,21 @@
         const mx = e.clientX - rect.left;
         const my = e.clientY - rect.top;
         
-        // Klik na výhybky
         data.stanice[0].vyhybky.forEach(w => {
-            if(Math.hypot(mx-w.x, my-w.y) < 20) {
+            if(Math.hypot(mx-w.x, my-w.y) < 25) {
                 w.state = w.state === 0 ? 1 : 0;
                 log(`Výhybka ${w.id} přestavena.`);
             }
         });
-        // Klik na návěstidla (míříme na kuličku nad kolejí)
         data.stanice[0].navestidla.forEach(n => {
-            if(Math.hypot(mx-n.x, my-(n.y-20)) < 20) {
+            if(Math.hypot(mx-n.x, my-(n.y-20)) < 25) {
                 n.state = (n.state === "stoj") ? "volno" : "stoj";
                 log(`Návěstidlo ${n.id} přepnuto.`);
             }
         });
     });
 
-    function gameLoop() {
-        update(); draw(); requestAnimationFrame(gameLoop);
-    }
+    function gameLoop() { update(); draw(); requestAnimationFrame(gameLoop); }
     init();
 </script>
 </body>

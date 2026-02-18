@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <title>Mini Staničář - Vibe Coding Edition</title>
+    <style>
+        body { background-color: #1a1a1a; color: #00ff00; font-family: 'Courier New', monospace; margin: 0; overflow: hidden; }
+        #canvas-container { display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; }
+        canvas { border: 2px solid #333; background-color: #000; cursor: crosshair; }
+        .ui-panel { margin-top: 10px; padding: 10px; border: 1px solid #00ff00; width: 800px; background: rgba(0, 255, 0, 0.1); }
+        h1 { font-size: 1.2rem; margin: 5px; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+
+<div id="canvas-container">
+    <h1>Dispečerský pult: Stanice "Fiktivov"</h1>
+    <canvas id="jopCanvas" width="800" height="400"></canvas>
+    <div class="ui-panel">
+        Stav: <span id="status">SYSTÉM OK</span> | Poslední akce: <span id="action">-</span>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('jopCanvas');
+    const ctx = canvas.getContext('2d');
+    const statusEl = document.getElementById('status');
+    const actionEl = document.getElementById('action');
+
+    // Definice segmentů kolejí
+    let tracks = [
+        { id: '1a', x1: 50, y1: 200, x2: 250, y2: 200, occupied: false, label: 'S1' },
+        { id: '1b', x1: 250, y1: 200, x2: 550, y2: 200, occupied: false, label: 'Kolej 1' },
+        { id: '1c', x1: 550, y1: 200, x2: 750, y2: 200, occupied: false, label: 'S2' },
+        // Odbočka (lokálka)
+        { id: '2a', x1: 250, y1: 200, x2: 400, y2: 100, occupied: false, label: 'L1' },
+        { id: '2b', x1: 400, y1: 100, x2: 750, y2: 100, occupied: false, label: 'Kolej 2' }
+    ];
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Vykreslení mřížky (vibe šedá)
+        ctx.strokeStyle = '#111';
+        for(let i=0; i<canvas.width; i+=20) {
+            ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); ctx.stroke();
+        }
+        for(let i=0; i<canvas.height; i+=20) {
+            ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); ctx.stroke();
+        }
+
+        // Vykreslení kolejí
+        tracks.forEach(track => {
+            ctx.lineWidth = 6;
+            ctx.strokeStyle = track.occupied ? '#ff0000' : '#444'; // Červená = obsazeno, Šedá = volno
+            
+            ctx.beginPath();
+            ctx.moveTo(track.x1, track.y1);
+            ctx.lineTo(track.x2, track.y2);
+            ctx.stroke();
+
+            // Popisky
+            ctx.fillStyle = '#aaa';
+            ctx.font = '10px Arial';
+            ctx.fillText(track.label, track.x1 + 10, track.y1 - 10);
+        });
+    }
+
+    // Interakce - kliknutí na kolej ji "obsadí" (nasimuluje vlak)
+    canvas.addEventListener('mousedown', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        tracks.forEach(track => {
+            // Jednoduchá detekce kliknutí blízko čáry
+            const dist = Math.abs((track.y2-track.y1)*mouseX - (track.x2-track.x1)*mouseY + track.x2*track.y1 - track.y2*track.x1) / 
+                         Math.sqrt(Math.pow(track.y2-track.y1, 2) + Math.pow(track.x2-track.x1, 2));
+            
+            if (dist < 10) {
+                track.occupied = !track.occupied;
+                actionEl.innerText = `Změna stavu úseku ${track.label}`;
+                draw();
+            }
+        });
+    });
+
+    draw();
+</script>
+</body>
+</html>

@@ -2,121 +2,150 @@
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vibe Dispatcher 2026</title>
+    <title>Vibe Dispatcher - Provoz</title>
     <style>
-        :root { --jop-bg: #0a0a0a; --jop-green: #00ff41; --jop-red: #ff3e3e; --jop-grey: #444; }
-        body { background: var(--jop-bg); color: var(--jop-green); font-family: 'Consolas', monospace; margin: 0; display: flex; flex-direction: column; align-items: center; }
-        #pult-header { width: 100%; padding: 10px 20px; background: #111; border-bottom: 2px solid var(--jop-grey); display: flex; justify-content: space-between; box-sizing: border-box; }
-        canvas { background: #000; cursor: crosshair; margin-top: 20px; border: 1px solid #222; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
-        .controls { margin-top: 15px; padding: 15px; background: rgba(0, 255, 65, 0.05); border: 1px solid var(--jop-grey); width: 950px; border-radius: 4px; }
-        .log { color: #888; font-size: 0.85rem; height: 40px; overflow-y: auto; }
-        .status-pill { padding: 2px 8px; border: 1px solid var(--jop-green); border-radius: 10px; font-size: 0.8rem; }
+        body { background: #0a0a0a; color: #00ff41; font-family: 'Consolas', monospace; margin: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; }
+        #header { width: 100%; padding: 10px; background: #111; border-bottom: 2px solid #333; text-align: center; }
+        canvas { background: #000; border: 1px solid #222; margin-top: 10px; box-shadow: 0 0 20px rgba(0,255,65,0.1); }
+        #console { width: 980px; height: 100px; background: #000; border: 1px solid #333; margin-top: 10px; padding: 10px; font-size: 0.8rem; overflow-y: auto; color: #888; }
+        .btn-spawn { margin-top: 10px; padding: 10px; background: #00ff41; color: black; border: none; cursor: pointer; font-weight: bold; }
     </style>
 </head>
 <body>
 
-<div id="pult-header">
-    <div>DISPEČERSKÉ PRACOVIŠTĚ: <strong id="station-name">NAČÍTÁNÍ...</strong></div>
-    <div class="status-pill">ONLINE / GITHUB PAGES</div>
-</div>
-
-<canvas id="jopCanvas" width="1000" height="500"></canvas>
-
-<div class="controls">
-    <div class="log" id="event-log">>> Inicializace systému...</div>
-    <div style="margin-top: 10px; font-size: 0.7rem; color: #555;">
-        OVLÁDÁNÍ: Klikni na uzel výhybky pro přestavení | Klikni na návěstidlo pro volbu cesty
-    </div>
-</div>
+<div id="header">DISPEČERSKÉ PRACOVIŠTĚ: <span id="st-name">...</span></div>
+<canvas id="jopCanvas" width="1000" height="400"></canvas>
+<div id="console">>> Systém připraven. Čekám na data...</div>
+<button class="btn-spawn" onclick="spawnTrain()">VYPLATIT VLAK</button>
 
 <script>
     const canvas = document.getElementById('jopCanvas');
     const ctx = canvas.getContext('2d');
-    let mapData = null;
+    let data = null;
 
-    // --- NAČÍTÁNÍ DAT ---
-    async function loadMap() {
+    async function init() {
         try {
-            const response = await fetch('mapa.json');
-            mapData = await response.json();
-            document.getElementById('station-name').innerText = mapData.stanice[0].jmeno;
-            log("Mapa úspěšně načtena z JSON souboru.");
-            render();
-        } catch (err) {
-            log("CHYBA: Nepodařilo se načíst mapa.json! Zkontroluj soubor na GitHubu.");
-            console.error(err);
-        }
+            const res = await fetch('mapa.json');
+            data = await res.json();
+            document.getElementById('st-name').innerText = data.stanice[0].jmeno;
+            log("Mapa načtena. Klikni na návěstidlo pro povolení jízdy.");
+            gameLoop();
+        } catch (e) { log("Chyba načítání mapa.json!"); }
     }
 
     function log(msg) {
-        const logEl = document.getElementById('event-log');
-        logEl.innerHTML = `>> ${msg}<br>${logEl.innerHTML}`;
+        const c = document.getElementById('console');
+        c.innerHTML = `> ${msg}<br>` + c.innerHTML;
     }
 
-    // --- VYKRESLOVÁNÍ ---
-    function render() {
-        if (!mapData) return;
+    function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        const stanice = mapData.stanice[0];
+        const s = data.stanice[0];
 
-        // 1. Vykresli statické koleje
-        stanice.koleje.forEach(k => {
-            drawTrack(k.x1, k.y1, k.x2, k.y2, k.occupied ? '#ff0000' : '#444', k.id);
+        // 1. Koleje
+        s.koleje.forEach(k => {
+            ctx.strokeStyle = k.occupied ? "#ff3e3e" : "#333";
+            ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.moveTo(k.x1, k.y1); ctx.lineTo(k.x2, k.y2); ctx.stroke();
         });
 
-        // 2. Vykresli výhybky
-        stanice.vyhybky.forEach(w => {
-            const target = (w.state === 0) ? w.cil_prip : w.cil_odb;
-            // Neaktivní směr (šedý)
-            const inactiveTarget = (w.state === 0) ? w.cil_odb : w.cil_prip;
-            drawTrack(w.x, w.y, inactiveTarget[0], inactiveTarget[1], '#222', "");
-            // Aktivní směr (bílý/zelený podle "vibe")
-            drawTrack(w.x, w.y, target[0], target[1], '#fff', w.id);
-            
-            // Čep výhybky
-            ctx.fillStyle = w.state === 0 ? "#00ff41" : "#ffaa00";
-            ctx.beginPath(); ctx.arc(w.x, w.y, 4, 0, Math.PI*2); ctx.fill();
+        // 2. Výhybky
+        s.vyhybky.forEach(w => {
+            const activePos = w.targets[w.state];
+            ctx.strokeStyle = "#fff";
+            ctx.beginPath(); ctx.moveTo(w.x, w.y); ctx.lineTo(activePos[0], activePos[1]); ctx.stroke();
+            ctx.fillStyle = "#ffaa00";
+            ctx.beginPath(); ctx.arc(w.x, w.y, 5, 0, 7); ctx.fill();
+        });
+
+        // 3. Návěstidla
+        s.navestidla.forEach(n => {
+            ctx.fillStyle = (n.state === "volno") ? "#00ff00" : "#ff0000";
+            ctx.shadowBlur = 10; ctx.shadowColor = ctx.fillStyle;
+            ctx.beginPath(); ctx.arc(n.x, n.y - 20, 6, 0, 7); ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = "#fff"; ctx.fillText(n.id, n.x - 10, n.y - 30);
+        });
+
+        // 4. Vlaky
+        s.vlaky.forEach(v => {
+            if(!v.active) return;
+            ctx.fillStyle = "#ffff00";
+            ctx.fillRect(v.x - 15, v.y - 8, 30, 16);
+            ctx.fillStyle = "#000"; ctx.font = "9px Arial";
+            ctx.fillText(v.id, v.x - 14, v.y + 3);
         });
     }
 
-    function drawTrack(x1, y1, x2, y2, color, label) {
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 4;
-        ctx.lineCap = "round";
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
-        
-        if (label) {
-            ctx.fillStyle = "#555";
-            ctx.font = "9px Arial";
-            ctx.fillText(label, (x1+x2)/2, (y1+y2)/2 - 10);
-        }
+    function update() {
+        if(!data) return;
+        const s = data.stanice[0];
+
+        s.vlaky.forEach(v => {
+            if(!v.active) return;
+
+            // Kontrola návěstidla před vlakem
+            const signal = s.navestidla.find(n => v.x < n.x && n.x < v.x + 30);
+            if(signal && signal.state === "stoj") {
+                v.currentSpeed = 0; // Červená - vlak stojí
+            } else {
+                v.currentSpeed = v.speed;
+                if(signal && signal.state === "volno") {
+                    signal.state = "stoj"; // Projetí návěstidla - shození na stůj
+                    log(`Vlak ${v.id} projel návěstidlo ${signal.id}.`);
+                }
+            }
+
+            v.x += v.currentSpeed;
+
+            // Dynamická změna Y podle výhybky W1
+            if(v.x > 250 && v.x < 260) {
+                const w1 = s.vyhybky.find(w => w.id === "W1");
+                v.targetY = (w1.state === 0) ? 250 : 100;
+            }
+            if(v.targetY) {
+                v.y += (v.targetY - v.y) * 0.1;
+            }
+
+            if(v.x > v.targetX) v.active = false;
+        });
     }
 
-    // --- INTERAKCE ---
+    function spawnTrain() {
+        const v = data.stanice[0].vlaky[0];
+        v.x = 50; v.y = 250; v.active = true; v.targetY = 250;
+        log(`Vlak ${v.id} je připraven k odjezdu.`);
+    }
+
     canvas.addEventListener('click', (e) => {
         const rect = canvas.getBoundingClientRect();
         const mx = e.clientX - rect.left;
         const my = e.clientY - rect.top;
 
-        if (!mapData) return;
-
-        // Logika kliknutí na výhybku
-        mapData.stanice[0].vyhybky.forEach(w => {
-            if (Math.hypot(mx - w.x, my - w.y) < 20) {
+        // Klik na výhybku
+        data.stanice[0].vyhybky.forEach(w => {
+            if(Math.hypot(mx-w.x, my-w.y) < 20) {
                 w.state = w.state === 0 ? 1 : 0;
                 log(`Výhybka ${w.id} přestavena.`);
-                render();
+            }
+        });
+
+        // Klik na návěstidlo
+        data.stanice[0].navestidla.forEach(n => {
+            if(Math.hypot(mx-n.x, my-(n.y-20)) < 15) {
+                n.state = (n.state === "stoj") ? "volno" : "stoj";
+                log(`Návěstidlo ${n.id} přepnuto.`);
             }
         });
     });
 
-    // Spuštění
-    loadMap();
+    function gameLoop() {
+        update();
+        draw();
+        requestAnimationFrame(gameLoop);
+    }
+
+    init();
 </script>
 </body>
 </html>

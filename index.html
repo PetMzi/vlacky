@@ -2,7 +2,7 @@
 <html lang="cs">
 <head>
 <meta charset="UTF-8">
-<title>JOP – Železniční Dispečink v3.1</title>
+<title>JOP – Železniční Dispečink v3.2</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700&display=swap');
 
@@ -40,7 +40,7 @@
   .status-bar .live { color: #00ff41; animation: blink 1.2s infinite; }
   @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
 
-  #canvasWrap { display: flex; justify-content: center; padding: 12px; }
+  #canvasWrap { display: flex; justify-content: center; padding: 12px; position: relative; }
   canvas {
     background: #000;
     border: 2px solid #1a1a1a;
@@ -72,6 +72,10 @@
   .btn.danger:hover { background: #ff0000; color: #000; }
   .btn.warn { border-color: #ffaa00; color: #ffaa00; }
   .btn.warn:hover { background: #ffaa00; color: #000; }
+  .btn.tutorial { border-color: #00ccff; color: #00ccff; }
+  .btn.tutorial:hover { background: #00ccff; color: #000; }
+  .btn.tutorial.active { background: #00ccff; color: #000; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{ box-shadow: 0 0 5px #00ccff; } 50%{ box-shadow: 0 0 20px #00ccff; } }
 
   #consoleWrap { display: flex; justify-content: center; padding: 0 24px 12px; }
   #console {
@@ -90,6 +94,7 @@
   #console .warn { color: #ffaa00; }
   #console .err { color: #ff0000; }
   #console .dim { color: #333; }
+  #console .tut { color: #00ccff; }
 
   #infoPanel {
     display: flex;
@@ -121,6 +126,74 @@
     z-index: 100;
   }
 
+  /* ── Tutorial overlay ── */
+  #tutOverlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 200;
+    justify-content: center;
+    align-items: center;
+  }
+  #tutOverlay.show { display: flex; }
+  #tutBox {
+    background: #000;
+    border: 2px solid #00ccff;
+    max-width: 560px;
+    width: 90%;
+    padding: 28px 32px;
+    position: relative;
+    box-shadow: 0 0 40px rgba(0,204,255,0.15);
+  }
+  #tutBox h2 {
+    font-family: 'Orbitron', monospace;
+    color: #00ccff;
+    font-size: 0.95rem;
+    letter-spacing: 2px;
+    margin-bottom: 14px;
+    text-shadow: 0 0 8px rgba(0,204,255,0.4);
+  }
+  #tutBox p, #tutBox li {
+    color: #aaa;
+    font-size: 0.78rem;
+    line-height: 1.8;
+    margin-bottom: 8px;
+  }
+  #tutBox .key { color: #ffaa00; font-weight: bold; }
+  #tutBox .green { color: #00ff41; }
+  #tutBox .red { color: #ff3333; }
+  #tutBox .cyan { color: #00ccff; }
+  #tutBox ul { list-style: none; padding-left: 12px; }
+  #tutBox ul li::before { content: "▸ "; color: #00ccff; }
+  #tutStep {
+    color: #555;
+    font-size: 0.65rem;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+  }
+  .tut-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 18px;
+  }
+  .tut-btn {
+    padding: 10px 22px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.78rem;
+    border: 2px solid #00ccff;
+    background: transparent;
+    color: #00ccff;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all 0.15s;
+  }
+  .tut-btn:hover { background: #00ccff; color: #000; }
+  .tut-btn.primary { background: #00ccff; color: #000; }
+  .tut-btn.primary:hover { background: #00eeff; }
+  .tut-btn.skip { border-color: #444; color: #666; }
+  .tut-btn.skip:hover { background: #333; color: #aaa; }
+
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: #000; }
   ::-webkit-scrollbar-thumb { background: #222; }
@@ -129,7 +202,7 @@
 <body>
 
 <div id="header">
-  <h1>⚡ JOP — DISPEČINK v3.1</h1>
+  <h1>⚡ JOP — DISPEČINK v3.2</h1>
   <div class="status-bar">
     <span>ČAS <span id="clock">--:--:--</span></span>
     <span class="live">● LIVE</span>
@@ -143,6 +216,7 @@
 </div>
 
 <div id="controls">
+  <button class="btn tutorial" id="btnTutorial" onclick="startTutorial()">📖 Výukový režim</button>
   <button class="btn" onclick="spawnScheduled()">▶ Jízdní řád</button>
   <button class="btn" onclick="spawnSingle('R 601','right')">+ R 601 →</button>
   <button class="btn" onclick="spawnSingle('Os 2814','right')">+ Os 2814 →</button>
@@ -165,9 +239,19 @@
 
 <div id="tooltip"></div>
 
+<!-- Tutorial overlay -->
+<div id="tutOverlay">
+  <div id="tutBox">
+    <div id="tutStep"></div>
+    <h2 id="tutTitle"></h2>
+    <div id="tutContent"></div>
+    <div class="tut-buttons" id="tutButtons"></div>
+  </div>
+</div>
+
 <script>
 // ═══════════════════════════════════════════════════════════
-//  JOP v3.1 — Dvě stanice, vysoký kontrast
+//  JOP v3.2 — Dvě stanice + VÝUKOVÝ REŽIM
 // ═══════════════════════════════════════════════════════════
 
 const canvas = document.getElementById('jop');
@@ -179,8 +263,13 @@ let autoMode = false;
 let emergencyMode = false;
 let trainIdCounter = 0;
 
-// ── Dvě stanice ──
-// [ZELENÁ LHOTA] ════════ trať ════════ [SKALNÁ]
+// ── Tutorial state ──
+let tutorialActive = false;
+let tutorialStep = -1;
+let tutHighlights = [];
+let tutArrows = [];
+let tutWaitFor = null;
+let tutCheckInterval = null;
 
 const STATIONS = [
   {
@@ -231,13 +320,11 @@ const STATIONS = [
   }
 ];
 
-// Traťové úseky
 const LINES = [
   { id: "trat-A", x1: 355, y1: 195, x2: 845, y2: 195, label: "Trať: ZL → SK" },
   { id: "trat-B", x1: 355, y1: 330, x2: 845, y2: 330, label: "Trať: SK → ZL" },
 ];
 
-// Autoblok na trati
 const LINE_SIGNALS = [
   { id: "Ab-1", x: 520, y: 195, state: "stoj", dir: 1,  label: "Ab1" },
   { id: "Ab-2", x: 680, y: 195, state: "stoj", dir: 1,  label: "Ab2" },
@@ -245,7 +332,6 @@ const LINE_SIGNALS = [
   { id: "Ab-4", x: 520, y: 330, state: "stoj", dir: -1, label: "Ab4" },
 ];
 
-// ── Vlaky ──
 let trains = [];
 
 const TRAIN_TYPES = {
@@ -267,9 +353,380 @@ function getAllSignals() {
   return s;
 }
 
-// ═══════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+//  TUTORIAL SYSTEM — 14 kroků
+// ═══════════════════════════════════════════════════════════
+
+const TUTORIAL_STEPS = [
+  {
+    title: "Vítejte ve výukovém režimu",
+    content: `
+      <p>Naučíte se ovládat železniční dispečink krok za krokem.</p>
+      <p>Simulátor obsahuje dvě stanice — <span class="cyan">Zelená Lhota</span> (vlevo) a <span class="cyan">Skalná</span> (vpravo), spojené tratí.</p>
+      <p>Vaším úkolem je bezpečně provést vlaky z jedné stanice do druhé.</p>
+      <p>Zvýrazněné prvky na mapě vám vždy ukáží, kam kliknout.</p>
+    `,
+    highlights: [], arrows: [], buttons: ["start"],
+  },
+  {
+    title: "Krok 1 — Koleje",
+    content: `
+      <p>Každá stanice má <span class="key">4 koleje</span> (ZL-1 až ZL-4 vlevo, SK-1 až SK-4 vpravo).</p>
+      <p>Koleje jsou vodorovné čáry. Když po nich jede vlak, <span class="green">rozsvítí se zeleně</span>.</p>
+      <p>Na mapě vidíte zvýrazněné koleje stanice Zelená Lhota.</p>
+    `,
+    highlights: [
+      {x:200, y:120, w:280, h:20},
+      {x:200, y:170, w:280, h:20},
+      {x:200, y:220, w:280, h:20},
+      {x:200, y:270, w:280, h:20},
+    ],
+    arrows: [], buttons: ["next"],
+  },
+  {
+    title: "Krok 2 — Výhybky",
+    content: `
+      <p><span class="key">Výhybky</span> jsou oranžové body na zhlavích stanic. Určují, na kterou kolej vlak odbočí.</p>
+      <p>Kliknutím na výhybku se cyklicky přepínají pozice (1→2→3→4→1...).</p>
+      <p>Oranžová čára ukazuje aktuální směrování.</p>
+    `,
+    highlights: [{x:70, y:195, r:22}, {x:340, y:195, r:22}],
+    arrows: [], buttons: ["next"],
+  },
+  {
+    title: "Krok 3 — Návěstidla",
+    content: `
+      <p><span class="key">Návěstidla</span> jsou signální světla. <span class="red">Červená = STŮJ</span>, <span class="green">zelená = VOLNO</span>.</p>
+      <p>Vlak zastaví před návěstidlem v poloze STŮJ. Kliknutím přepnete.</p>
+      <ul>
+        <li><span class="key">L / Lp</span> — vstupní (vpouští vlak do stanice)</li>
+        <li><span class="key">S1–S4</span> — odjezdová (povolují odjezd z koleje)</li>
+        <li><span class="key">Ab1–Ab4</span> — traťová (mezi stanicemi)</li>
+      </ul>
+    `,
+    highlights: [
+      {x:40, y:167, r:18}, {x:355, y:120, r:14}, {x:355, y:170, r:14},
+      {x:355, y:220, r:14}, {x:355, y:270, r:14},
+    ],
+    arrows: [], buttons: ["next"],
+  },
+  {
+    title: "Krok 4 — Vypravte vlak!",
+    content: `
+      <p>Zavřete toto okno a klikněte na tlačítko <span class="key">+ R 601 →</span> pod mapou.</p>
+      <p>Vypravíte rychlík R 601 směrem → Skalná. Vlak se zastaví u prvního návěstidla — to je správně!</p>
+    `,
+    highlights: [], arrows: [],
+    buttons: ["close-and-wait"],
+    waitFor: () => trains.some(t => t.active && t.name === "R 601"),
+  },
+  {
+    title: "Krok 5 — Nastavte vstupní výhybku",
+    content: `
+      <p>Vlak R 601 stojí před návěstidlem <span class="key">L</span>.</p>
+      <p>Klikněte na výhybku <span class="key">V1</span> (oranžový bod vlevo) a nastavte ji na pozici <span class="key">1</span> (kolej ZL-1 úplně nahoře).</p>
+      <p>Pokud je výhybka jinde, klikejte, dokud čára nesměřuje nahoru ke kolej ZL-1.</p>
+    `,
+    highlights: [{x:70, y:195, r:25}],
+    arrows: [{x1:70, y1:155, x2:70, y2:178}],
+    buttons: ["close-and-wait"],
+    waitFor: () => STATIONS[0].switches[0].state === 0,
+  },
+  {
+    title: "Krok 6 — Otevřete návěstidlo L",
+    content: `
+      <p>Výhybka V1 míří na kolej 1 — výborně!</p>
+      <p>Klikněte na <span class="key">návěstidlo L</span> (červený kroužek vlevo od stanice) a přepněte na <span class="green">VOLNO</span>.</p>
+      <p>Tím dáte R 601 povolení vjet do stanice.</p>
+    `,
+    highlights: [{x:40, y:167, r:22}],
+    arrows: [{x1:40, y1:140, x2:40, y2:158}],
+    buttons: ["close-and-wait"],
+    waitFor: () => {
+      const sig = STATIONS[0].signals.find(s => s.id === "ZL-L");
+      return sig && sig.state === "volno";
+    },
+  },
+  {
+    title: "Krok 7 — Vlak vjíždí",
+    content: `
+      <p>R 601 vjíždí do stanice Zelená Lhota na kolej 1.</p>
+      <p>Všimněte si:</p>
+      <ul>
+        <li>Návěstidlo L se za vlakem <span class="red">automaticky zavřelo</span></li>
+        <li>Kolej ZL-1 <span class="green">svítí zeleně</span> (obsazena)</li>
+        <li>Vlak zastaví u nástupiště (odpočet času)</li>
+      </ul>
+      <p>Počkejte, až vlak zastaví...</p>
+    `,
+    highlights: [{x:200, y:120, w:280, h:24}],
+    arrows: [],
+    buttons: ["close-and-wait"],
+    waitFor: () => {
+      const t = trains.find(tr => tr.name === "R 601");
+      return t && t.currentStation === "ZELENÁ LHOTA" && t.dwellTimer > 0;
+    },
+  },
+  {
+    title: "Krok 8 — Připravte odjezd",
+    content: `
+      <p>Vlak stojí ve stanici. Nyní proveďte 3 kroky:</p>
+      <ul>
+        <li><span class="key">1.</span> Klikněte na výstupní výhybku <span class="key">V2</span> (vpravo od stanice)</li>
+        <li><span class="key">2.</span> Otevřete odjezdové návěstidlo <span class="key">S1</span> (u koleje 1)</li>
+        <li><span class="key">3.</span> Otevřete traťové návěstidlo <span class="key">Ab1</span> (uprostřed trati)</li>
+      </ul>
+      <p>Všechny tři prvky jsou zvýrazněné na mapě.</p>
+    `,
+    highlights: [
+      {x:340, y:195, r:22},
+      {x:355, y:92, r:18},
+      {x:520, y:167, r:18},
+    ],
+    arrows: [],
+    buttons: ["close-and-wait"],
+    waitFor: () => {
+      const s1 = STATIONS[0].signals.find(s => s.id === "ZL-S1");
+      const ab = LINE_SIGNALS.find(s => s.id === "Ab-1");
+      return s1 && s1.state === "volno" && ab && ab.state === "volno";
+    },
+  },
+  {
+    title: "Krok 9 — Vlak je na trati",
+    content: `
+      <p>R 601 odjíždí směrem ke Skalné!</p>
+      <p>Připravte příjezd do Skalné:</p>
+      <ul>
+        <li>Klikněte na výhybku <span class="key">SK-V1</span> (levý oranžový bod u Skalné) — nastavte ji na kolej, kam chcete vlak přijmout</li>
+        <li>Otevřete traťové návěstidlo <span class="key">Ab2</span> (druhé na trati)</li>
+      </ul>
+    `,
+    highlights: [
+      {x:860, y:195, r:22},
+      {x:680, y:167, r:18},
+    ],
+    arrows: [],
+    buttons: ["close-and-wait"],
+    waitFor: () => {
+      const ab2 = LINE_SIGNALS.find(s => s.id === "Ab-2");
+      return ab2 && ab2.state === "volno";
+    },
+  },
+  {
+    title: "Krok 10 — Vlak dorazil",
+    content: `
+      <p>Výborně! R 601 projede do Skalné a po krátkém stání odjede z mapy.</p>
+      <p>Znáte základní postup stavění vlakové cesty:</p>
+      <ul>
+        <li><span class="key">1.</span> Výhybka → správná kolej</li>
+        <li><span class="key">2.</span> Návěstidlo → VOLNO</li>
+        <li><span class="key">3.</span> Vlak projede → návěstidlo se zavře</li>
+        <li><span class="key">4.</span> Výstupní výhybka + odjezdové návěstidlo</li>
+        <li><span class="key">5.</span> Traťová návěstidla → VOLNO</li>
+      </ul>
+    `,
+    highlights: [], arrows: [],
+    buttons: ["next"],
+  },
+  {
+    title: "Krok 11 — Protijedoucí vlak",
+    content: `
+      <p>Vlaky jezdí i opačným směrem (← ze Skalné do Zelené Lhoty).</p>
+      <p>Postup je stejný, jen používáte <span class="key">opačné prvky</span>:</p>
+      <ul>
+        <li>Vstupní návěstidlo Skalné = <span class="key">SK-L</span></li>
+        <li>Výstupní výhybka = <span class="key">SK-V2</span></li>
+        <li>Traťová návěstidla = <span class="key">Ab3, Ab4</span> (spodní řada)</li>
+      </ul>
+      <p>Zkuste si to sami — stiskněte <span class="key">← Ex 145</span> a proveďte vlak opačným směrem!</p>
+    `,
+    highlights: [], arrows: [],
+    buttons: ["next"],
+  },
+  {
+    title: "Krok 12 — Automatický režim",
+    content: `
+      <p>Nechcete stavět cesty ručně? Zapněte <span class="key">⚙ Auto</span>.</p>
+      <p>Systém sám:</p>
+      <ul>
+        <li>Najde volnou kolej</li>
+        <li>Nastaví výhybky a otevře návěstidla</li>
+        <li>Po stání připraví odjezdovou cestu</li>
+      </ul>
+      <p>Vyzkoušejte: zapněte Auto a stiskněte <span class="key">▶ Jízdní řád</span>.</p>
+    `,
+    highlights: [], arrows: [],
+    buttons: ["next"],
+  },
+  {
+    title: "Krok 13 — Nouzové zastavení",
+    content: `
+      <p><span class="red">⛔ Nouzové zastavení</span> okamžitě:</p>
+      <ul>
+        <li>Zavře <span class="red">všechna návěstidla</span></li>
+        <li>Zastaví všechny vlaky</li>
+        <li>Opakovaným stiskem se zruší</li>
+      </ul>
+      <p>Systém také automaticky detekuje kolize a zastaví ohrožené vlaky.</p>
+    `,
+    highlights: [], arrows: [],
+    buttons: ["next"],
+  },
+  {
+    title: "Výuka dokončena!",
+    content: `
+      <p>Shrnutí pro dispečera:</p>
+      <ul>
+        <li><span class="key">Výhybka</span> (oranžová) — klik = přepnout kolej</li>
+        <li><span class="key">Návěstidlo</span> (červená/zelená) — klik = STŮJ/VOLNO</li>
+        <li><span class="key">Postup</span>: výhybka → návěstidlo → vlak projede</li>
+        <li><span class="key">Auto</span> = systém řídí sám</li>
+        <li><span class="key">Tooltip</span> = najeďte myší na prvek</li>
+      </ul>
+      <p>Výuku spustíte znovu tlačítkem <span class="cyan">📖 Výukový režim</span>.</p>
+    `,
+    highlights: [], arrows: [],
+    buttons: ["finish"],
+  },
+];
+
+function startTutorial() {
+  trains = [];
+  emergencyMode = false;
+  autoMode = false;
+  getAllSignals().forEach(s => s.state = 'stoj');
+  STATIONS.forEach(st => st.switches.forEach(sw => sw.state = 1));
+  document.getElementById('panelMode').textContent = 'MANUÁLNÍ';
+  document.getElementById('panelMode').style.color = '#00ff41';
+  document.getElementById('panelSafety').textContent = 'OK';
+  document.getElementById('panelSafety').style.color = '#00ff41';
+
+  tutorialActive = true;
+  tutorialStep = -1;
+  document.getElementById('btnTutorial').classList.add('active');
+  log('📖 Výukový režim zahájen.', 'tut');
+  nextTutorialStep();
+}
+
+function endTutorial() {
+  tutorialActive = false;
+  tutorialStep = -1;
+  tutHighlights = [];
+  tutArrows = [];
+  tutWaitFor = null;
+  if (tutCheckInterval) { clearInterval(tutCheckInterval); tutCheckInterval = null; }
+  document.getElementById('tutOverlay').classList.remove('show');
+  document.getElementById('btnTutorial').classList.remove('active');
+  log('📖 Výukový režim ukončen.', 'tut');
+}
+
+function nextTutorialStep() {
+  tutorialStep++;
+  if (tutorialStep >= TUTORIAL_STEPS.length) { endTutorial(); return; }
+  showTutorialStep(tutorialStep);
+}
+
+function showTutorialStep(idx) {
+  const step = TUTORIAL_STEPS[idx];
+  document.getElementById('tutStep').textContent = `KROK ${idx}/${TUTORIAL_STEPS.length - 1}`;
+  document.getElementById('tutTitle').textContent = step.title;
+  document.getElementById('tutContent').innerHTML = step.content;
+
+  tutHighlights = step.highlights || [];
+  tutArrows = step.arrows || [];
+  tutWaitFor = step.waitFor || null;
+
+  const btns = document.getElementById('tutButtons');
+  btns.innerHTML = '';
+
+  step.buttons.forEach(b => {
+    const el = document.createElement('button');
+    el.className = 'tut-btn';
+    if (b === 'start') {
+      el.textContent = 'ZAČÍT VÝUKU →'; el.className = 'tut-btn primary';
+      el.onclick = () => nextTutorialStep();
+    } else if (b === 'next') {
+      el.textContent = 'POKRAČOVAT →'; el.className = 'tut-btn primary';
+      el.onclick = () => nextTutorialStep();
+    } else if (b === 'close-and-wait') {
+      el.textContent = 'ROZUMÍM — PROVEDU'; el.className = 'tut-btn primary';
+      el.onclick = () => {
+        document.getElementById('tutOverlay').classList.remove('show');
+        if (tutWaitFor) {
+          if (tutCheckInterval) clearInterval(tutCheckInterval);
+          tutCheckInterval = setInterval(() => {
+            if (tutWaitFor && tutWaitFor()) {
+              clearInterval(tutCheckInterval); tutCheckInterval = null;
+              log('✓ Správně!', 'tut');
+              setTimeout(() => nextTutorialStep(), 600);
+            }
+          }, 200);
+        }
+      };
+    } else if (b === 'finish') {
+      el.textContent = 'DOKONČIT VÝUKU'; el.className = 'tut-btn primary';
+      el.onclick = () => endTutorial();
+    }
+    btns.appendChild(el);
+  });
+
+  if (step.buttons[0] !== 'finish') {
+    const skip = document.createElement('button');
+    skip.textContent = 'PŘESKOČIT VŠE'; skip.className = 'tut-btn skip';
+    skip.onclick = () => endTutorial();
+    btns.appendChild(skip);
+  }
+
+  document.getElementById('tutOverlay').classList.add('show');
+}
+
+function drawTutorialOverlay() {
+  if (!tutorialActive) return;
+  const t = (simTime % 60) / 60;
+
+  // Highlights
+  tutHighlights.forEach(h => {
+    const p = 4 + Math.sin(t * Math.PI * 2) * 3;
+    const alpha = 0.4 + Math.sin(t * Math.PI * 2) * 0.3;
+    ctx.strokeStyle = `rgba(0,204,255,${alpha})`;
+    ctx.lineWidth = 2.5;
+
+    if (h.w && h.h) {
+      ctx.strokeRect(h.x - h.w/2 - p, h.y - h.h/2 - p, h.w + p*2, h.h + p*2);
+      ctx.fillStyle = `rgba(0,204,255,${0.03 + Math.sin(t * Math.PI * 2) * 0.02})`;
+      ctx.fillRect(h.x - h.w/2 - p, h.y - h.h/2 - p, h.w + p*2, h.h + p*2);
+    } else if (h.r) {
+      ctx.beginPath(); ctx.arc(h.x, h.y, h.r + p, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = `rgba(0,204,255,${0.05 + Math.sin(t * Math.PI * 2) * 0.04})`;
+      ctx.beginPath(); ctx.arc(h.x, h.y, h.r + p, 0, Math.PI * 2); ctx.fill();
+    }
+  });
+
+  // Arrows (bouncing)
+  tutArrows.forEach(a => {
+    const bounce = Math.sin(t * Math.PI * 2) * 5;
+    ctx.strokeStyle = '#00ccff'; ctx.lineWidth = 2;
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath(); ctx.moveTo(a.x1, a.y1); ctx.lineTo(a.x2, a.y2 + bounce); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#00ccff'; ctx.beginPath();
+    ctx.moveTo(a.x2, a.y2 + bounce + 6);
+    ctx.lineTo(a.x2 - 5, a.y2 + bounce - 2);
+    ctx.lineTo(a.x2 + 5, a.y2 + bounce - 2);
+    ctx.fill();
+  });
+
+  // Badge
+  ctx.fillStyle = 'rgba(0,204,255,0.15)'; ctx.fillRect(W - 140, 8, 130, 26);
+  ctx.strokeStyle = '#00ccff'; ctx.lineWidth = 1; ctx.strokeRect(W - 140, 8, 130, 26);
+  ctx.fillStyle = '#00ccff'; ctx.font = 'bold 11px Share Tech Mono'; ctx.textAlign = 'center';
+  ctx.fillText(`📖 VÝUKA ${tutorialStep}/${TUTORIAL_STEPS.length - 1}`, W - 75, 25);
+  ctx.textAlign = 'left';
+}
+
+// ═══════════════════════════════════════════════════════════
 //  SPAWN
-// ═══════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 
 function createTrain(name, dir) {
   const type = getTrainType(name);
@@ -303,9 +760,9 @@ function spawnScheduled() {
   ].forEach(s => setTimeout(() => { if (!emergencyMode) createTrain(s.name, s.dir); }, s.delay * 16));
 }
 
-// ═══════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 //  AUTO / EMERGENCY
-// ═══════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 
 function toggleAuto() {
   autoMode = !autoMode;
@@ -378,9 +835,9 @@ function findFreeTrack(station, train) {
   return -1;
 }
 
-// ═══════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 //  UPDATE
-// ═══════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 
 function update() {
   simTime++;
@@ -389,25 +846,21 @@ function update() {
   trains.forEach(t => {
     if (!t.active || t.stopped) return;
 
-    // Signál
     let blocked = false;
     getAllSignals().forEach(sig => {
       if (sig.state !== 'stoj') return;
       const d = (t.x - sig.x) * t.dir;
       if (d > -65 && d < -5 && Math.abs(t.y - sig.y) < 50) {
-        blocked = true;
-        t.stoppedAt = sig.id;
+        blocked = true; t.stoppedAt = sig.id;
       }
     });
     if (blocked) { t.speed = Math.max(0, t.speed - 0.06); }
     else { t.stoppedAt = null; t.speed = Math.min(t.maxSpeed, t.speed + 0.02); }
 
-    // Zastavení ve stanici
     STATIONS.forEach(st => {
       const inZ = t.x > st.cx - 80 && t.x < st.cx + 80;
       if (inZ && !t.visitedStations.includes(st.name) && t.phase !== 'in-station') {
-        t.currentStation = st.name;
-        t.phase = 'in-station';
+        t.currentStation = st.name; t.phase = 'in-station';
         t.dwellDuration = t.priority >= 4 ? 100 : 200;
         t.dwellTimer = t.dwellDuration;
         log(`${t.name} → stanice <span class="info">${st.name}</span>`, 'info');
@@ -423,7 +876,6 @@ function update() {
       return;
     }
 
-    // Výhybky
     STATIONS.forEach(st => {
       st.switches.forEach(sw => {
         if (Math.abs(t.x - sw.x) < 18) t.targetY = sw.targets[sw.state][1];
@@ -437,7 +889,6 @@ function update() {
 
     t.x += t.speed * t.dir;
 
-    // Zavřít návěstidlo za sebou
     getAllSignals().forEach(sig => {
       const passed = (t.dir === 1 && t.x > sig.x + 10 && t.x < sig.x + 22) ||
                      (t.dir === -1 && t.x < sig.x - 10 && t.x > sig.x - 22);
@@ -447,7 +898,6 @@ function update() {
     if (t.x > W + 150 || t.x < -150) { t.active = false; log(`${t.name} opustil síť.`, 'dim'); }
   });
 
-  // Kolize
   for (let i = 0; i < trains.length; i++) {
     for (let j = i + 1; j < trains.length; j++) {
       const a = trains[i], b = trains[j];
@@ -465,255 +915,138 @@ function update() {
   updatePanel();
 }
 
-// ═══════════════════════════════════════
-//  DRAW — vysoký kontrast
-// ═══════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+//  DRAW
+// ═══════════════════════════════════════════════════════════
 
 function draw() {
   ctx.clearRect(0, 0, W, H);
 
-  // Grid
-  ctx.strokeStyle = '#0a0a0a';
-  ctx.lineWidth = 0.5;
+  ctx.strokeStyle = '#0a0a0a'; ctx.lineWidth = 0.5;
   for (let x = 0; x < W; x += 50) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
   for (let y = 0; y < H; y += 50) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
 
-  // Tratě
   LINES.forEach(l => {
-    ctx.strokeStyle = '#2a2a2a';
-    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#2a2a2a'; ctx.lineWidth = 3;
     ctx.setLineDash([10, 8]);
     ctx.beginPath(); ctx.moveTo(l.x1, l.y1); ctx.lineTo(l.x2, l.y2); ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle = '#333';
-    ctx.font = '10px Share Tech Mono';
+    ctx.fillStyle = '#333'; ctx.font = '10px Share Tech Mono';
     ctx.fillText(l.label, (l.x1 + l.x2) / 2 - 40, l.y1 - 10);
   });
 
-  // Stanice
   STATIONS.forEach(st => {
-    const x1 = st.tracks[0].x1 - 25;
-    const x2 = st.tracks[0].x2 + 25;
-    const y1 = st.tracks[0].y1 - 35;
-    const y2 = st.tracks[st.tracks.length - 1].y2 + 35;
+    const x1 = st.tracks[0].x1 - 25, x2 = st.tracks[0].x2 + 25;
+    const y1 = st.tracks[0].y1 - 35, y2 = st.tracks[st.tracks.length - 1].y2 + 35;
+    ctx.fillStyle = 'rgba(0,255,65,0.02)'; ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
+    ctx.strokeStyle = '#1a3a1a'; ctx.lineWidth = 1; ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
 
-    // Oblast stanice
-    ctx.fillStyle = 'rgba(0,255,65,0.02)';
-    ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
-    ctx.strokeStyle = '#1a3a1a';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
-
-    // Název
-    ctx.fillStyle = '#00ff41';
-    ctx.font = 'bold 13px Orbitron';
-    ctx.textAlign = 'center';
+    ctx.fillStyle = '#00ff41'; ctx.font = 'bold 13px Orbitron'; ctx.textAlign = 'center';
     ctx.shadowBlur = 8; ctx.shadowColor = '#00ff41';
-    ctx.fillText(st.name, st.cx, y1 - 12);
-    ctx.shadowBlur = 0;
-    ctx.textAlign = 'left';
+    ctx.fillText(st.name, st.cx, y1 - 12); ctx.shadowBlur = 0; ctx.textAlign = 'left';
 
-    // Koleje
     st.tracks.forEach(tk => {
       const occ = trains.some(t => t.active && Math.abs(t.y - tk.y1) < 15 && t.x > tk.x1 - 30 && t.x < tk.x2 + 30);
-
-      // Kolejový pás
-      ctx.strokeStyle = occ ? '#00ff41' : '#333';
-      ctx.lineWidth = occ ? 5 : 3;
+      ctx.strokeStyle = occ ? '#00ff41' : '#333'; ctx.lineWidth = occ ? 5 : 3;
       ctx.beginPath(); ctx.moveTo(tk.x1, tk.y1); ctx.lineTo(tk.x2, tk.y2); ctx.stroke();
-
-      // Pražce
-      const step = 18;
-      for (let px = tk.x1; px < tk.x2; px += step) {
-        ctx.strokeStyle = occ ? '#0a3a0a' : '#1a1a1a';
-        ctx.lineWidth = 1;
+      for (let px = tk.x1; px < tk.x2; px += 18) {
+        ctx.strokeStyle = occ ? '#0a3a0a' : '#1a1a1a'; ctx.lineWidth = 1;
         ctx.beginPath(); ctx.moveTo(px, tk.y1 - 5); ctx.lineTo(px, tk.y1 + 5); ctx.stroke();
       }
-
-      // ID koleje
-      ctx.fillStyle = occ ? '#00ff41' : '#444';
-      ctx.font = 'bold 10px Share Tech Mono';
+      ctx.fillStyle = occ ? '#00ff41' : '#444'; ctx.font = 'bold 10px Share Tech Mono';
       ctx.fillText(tk.id, tk.x1 + 2, tk.y1 - 9);
-
-      // Obsazení – zvýraznění
-      if (occ) {
-        ctx.fillStyle = 'rgba(0,255,65,0.06)';
-        ctx.fillRect(tk.x1, tk.y1 - 12, tk.x2 - tk.x1, 24);
-      }
+      if (occ) { ctx.fillStyle = 'rgba(0,255,65,0.06)'; ctx.fillRect(tk.x1, tk.y1 - 12, tk.x2 - tk.x1, 24); }
     });
 
-    // Výhybky
     st.switches.forEach(sw => {
-      const active = sw.targets[sw.state];
-
-      // Všechny cesty (dim)
       sw.targets.forEach((tg, i) => {
-        ctx.strokeStyle = i === sw.state ? '#ffaa00' : '#1a1200';
-        ctx.lineWidth = i === sw.state ? 2.5 : 1;
+        ctx.strokeStyle = i === sw.state ? '#ffaa00' : '#1a1200'; ctx.lineWidth = i === sw.state ? 2.5 : 1;
         ctx.beginPath(); ctx.moveTo(sw.x, sw.y); ctx.lineTo(tg[0], tg[1]); ctx.stroke();
       });
-
-      // Bod
-      ctx.fillStyle = '#ffaa00';
-      ctx.shadowBlur = 10; ctx.shadowColor = '#ffaa00';
-      ctx.beginPath(); ctx.arc(sw.x, sw.y, 6, 0, Math.PI * 2); ctx.fill();
-      ctx.shadowBlur = 0;
-
-      // Obrys
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 1;
+      ctx.fillStyle = '#ffaa00'; ctx.shadowBlur = 10; ctx.shadowColor = '#ffaa00';
+      ctx.beginPath(); ctx.arc(sw.x, sw.y, 6, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.arc(sw.x, sw.y, 6, 0, Math.PI * 2); ctx.stroke();
-
-      // Label
-      ctx.fillStyle = '#ffaa00';
-      ctx.font = 'bold 10px Share Tech Mono';
+      ctx.fillStyle = '#ffaa00'; ctx.font = 'bold 10px Share Tech Mono';
       ctx.fillText(sw.label, sw.x - 6, sw.y + 20);
     });
 
-    // Návěstidla
     st.signals.forEach(sig => drawSignal(sig));
   });
 
-  // Traťová návěstidla
   LINE_SIGNALS.forEach(sig => drawSignal(sig));
 
-  // Vlaky
   trains.forEach(t => {
     if (!t.active) return;
     const hw = t.len / 2;
-
-    // Stín
-    ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    ctx.fillRect(t.x - hw + 2, t.y - 6 + 3, t.len, 12);
-
-    // Tělo vlaku
-    ctx.fillStyle = t.color;
-    ctx.shadowBlur = 6; ctx.shadowColor = t.color;
-    ctx.fillRect(t.x - hw, t.y - 7, t.len, 14);
-    ctx.shadowBlur = 0;
-
-    // Obrys
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(t.x - hw, t.y - 7, t.len, 14);
-
-    // Světlo
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(t.x - hw + 2, t.y - 6 + 3, t.len, 12);
+    ctx.fillStyle = t.color; ctx.shadowBlur = 6; ctx.shadowColor = t.color;
+    ctx.fillRect(t.x - hw, t.y - 7, t.len, 14); ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.strokeRect(t.x - hw, t.y - 7, t.len, 14);
     const hlx = t.dir === 1 ? t.x + hw : t.x - hw;
-    ctx.fillStyle = '#fff';
-    ctx.shadowBlur = 14; ctx.shadowColor = '#fff';
-    ctx.beginPath(); ctx.arc(hlx, t.y, 3, 0, Math.PI * 2); ctx.fill();
-    ctx.shadowBlur = 0;
-
-    // Název
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 10px Share Tech Mono';
-    ctx.textAlign = 'center';
+    ctx.fillStyle = '#fff'; ctx.shadowBlur = 14; ctx.shadowColor = '#fff';
+    ctx.beginPath(); ctx.arc(hlx, t.y, 3, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 10px Share Tech Mono'; ctx.textAlign = 'center';
     ctx.shadowBlur = 4; ctx.shadowColor = '#000';
-    ctx.fillText(t.name, t.x, t.y - 14);
-    ctx.shadowBlur = 0;
-
-    // Status
+    ctx.fillText(t.name, t.x, t.y - 14); ctx.shadowBlur = 0;
     if (t.speed > 0) {
-      ctx.fillStyle = '#888';
-      ctx.font = '9px Share Tech Mono';
+      ctx.fillStyle = '#888'; ctx.font = '9px Share Tech Mono';
       ctx.fillText(Math.round(t.speed * 50) + ' km/h', t.x, t.y + 24);
     } else if (t.dwellTimer > 0) {
-      ctx.fillStyle = '#ffaa00';
-      ctx.font = 'bold 9px Share Tech Mono';
+      ctx.fillStyle = '#ffaa00'; ctx.font = 'bold 9px Share Tech Mono';
       ctx.fillText('⏱ ' + Math.ceil(t.dwellTimer / 60) + 's', t.x, t.y + 24);
     } else if (t.stoppedAt) {
-      ctx.fillStyle = '#ff0000';
-      ctx.font = 'bold 9px Share Tech Mono';
+      ctx.fillStyle = '#ff0000'; ctx.font = 'bold 9px Share Tech Mono';
       ctx.fillText('● STOJ', t.x, t.y + 24);
     }
     ctx.textAlign = 'left';
   });
 
-  // Liniový diagram
   drawLineDiagram();
+  drawTutorialOverlay();
 }
 
 function drawSignal(sig) {
   const go = sig.state === 'volno';
   const col = go ? '#00ff41' : '#ff0000';
-
-  // Sloupek
-  ctx.strokeStyle = '#555';
-  ctx.lineWidth = 2;
+  ctx.strokeStyle = '#555'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(sig.x, sig.y); ctx.lineTo(sig.x, sig.y - 22); ctx.stroke();
-
-  // Hlavní světlo
-  ctx.fillStyle = col;
-  ctx.shadowBlur = go ? 16 : 12;
-  ctx.shadowColor = col;
+  ctx.fillStyle = col; ctx.shadowBlur = go ? 16 : 12; ctx.shadowColor = col;
   ctx.beginPath(); ctx.arc(sig.x, sig.y - 28, 7, 0, Math.PI * 2); ctx.fill();
-
-  // Obrys
-  ctx.strokeStyle = '#fff';
-  ctx.lineWidth = 1;
-  ctx.shadowBlur = 0;
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.shadowBlur = 0;
   ctx.beginPath(); ctx.arc(sig.x, sig.y - 28, 7, 0, Math.PI * 2); ctx.stroke();
-
-  // Druhé světlo (předvěst)
-  ctx.fillStyle = '#111';
-  ctx.beginPath(); ctx.arc(sig.x, sig.y - 42, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(sig.x, sig.y - 42, 5, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = go ? '#111' : '#ffaa00';
   ctx.shadowBlur = go ? 0 : 6; ctx.shadowColor = '#ffaa00';
-  ctx.beginPath(); ctx.arc(sig.x, sig.y - 42, 3.5, 0, Math.PI * 2); ctx.fill();
-  ctx.shadowBlur = 0;
-
-  // Štítek
-  ctx.fillStyle = '#888';
-  ctx.font = 'bold 9px Share Tech Mono';
+  ctx.beginPath(); ctx.arc(sig.x, sig.y - 42, 3.5, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+  ctx.fillStyle = '#888'; ctx.font = 'bold 9px Share Tech Mono';
   ctx.fillText(sig.label, sig.x - 7, sig.y + 14);
 }
 
 function drawLineDiagram() {
   const y = H - 35;
-  ctx.fillStyle = '#050505';
-  ctx.fillRect(0, H - 60, W, 60);
-  ctx.strokeStyle = '#1a1a1a';
-  ctx.beginPath(); ctx.moveTo(0, H - 60); ctx.lineTo(W, H - 60); ctx.stroke();
-
-  // Linie
-  ctx.strokeStyle = '#333';
-  ctx.lineWidth = 2;
+  ctx.fillStyle = '#050505'; ctx.fillRect(0, H - 60, W, 60);
+  ctx.strokeStyle = '#1a1a1a'; ctx.beginPath(); ctx.moveTo(0, H - 60); ctx.lineTo(W, H - 60); ctx.stroke();
+  ctx.strokeStyle = '#333'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(80, y); ctx.lineTo(W - 80, y); ctx.stroke();
-
-  // Stanice
   STATIONS.forEach(st => {
-    ctx.fillStyle = '#00ff41';
-    ctx.shadowBlur = 6; ctx.shadowColor = '#00ff41';
-    ctx.beginPath(); ctx.arc(st.cx, y, 5, 0, Math.PI * 2); ctx.fill();
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = '#888';
-    ctx.font = '10px Share Tech Mono';
-    ctx.textAlign = 'center';
-    ctx.fillText(st.name, st.cx, y + 16);
-    ctx.textAlign = 'left';
+    ctx.fillStyle = '#00ff41'; ctx.shadowBlur = 6; ctx.shadowColor = '#00ff41';
+    ctx.beginPath(); ctx.arc(st.cx, y, 5, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+    ctx.fillStyle = '#888'; ctx.font = '10px Share Tech Mono'; ctx.textAlign = 'center';
+    ctx.fillText(st.name, st.cx, y + 16); ctx.textAlign = 'left';
   });
-
-  // Vlaky
   trains.forEach(t => {
     if (!t.active) return;
-    ctx.fillStyle = t.color;
-    ctx.shadowBlur = 4; ctx.shadowColor = t.color;
-    ctx.beginPath(); ctx.arc(t.x, y, 4, 0, Math.PI * 2); ctx.fill();
-    ctx.shadowBlur = 0;
-
-    // Šipka směru
-    ctx.fillStyle = t.color;
-    ctx.beginPath();
-    ctx.moveTo(t.x + t.dir * 7, y);
-    ctx.lineTo(t.x + t.dir * 2, y - 3);
-    ctx.lineTo(t.x + t.dir * 2, y + 3);
-    ctx.fill();
+    ctx.fillStyle = t.color; ctx.shadowBlur = 4; ctx.shadowColor = t.color;
+    ctx.beginPath(); ctx.arc(t.x, y, 4, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+    ctx.fillStyle = t.color; ctx.beginPath();
+    ctx.moveTo(t.x + t.dir * 7, y); ctx.lineTo(t.x + t.dir * 2, y - 3); ctx.lineTo(t.x + t.dir * 2, y + 3); ctx.fill();
   });
 }
 
-// ═══════════════════════════════════════
-//  INTERAKCE
-// ═══════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+//  INTERACTION
+// ═══════════════════════════════════════════════════════════
 
 canvas.addEventListener('click', (e) => {
   const rect = canvas.getBoundingClientRect();
@@ -763,16 +1096,14 @@ canvas.addEventListener('mousemove', (e) => {
   });
 
   if (tip) {
-    tooltip.style.display = 'block';
-    tooltip.textContent = tip;
-    tooltip.style.left = (e.clientX + 14) + 'px';
-    tooltip.style.top = (e.clientY - 10) + 'px';
+    tooltip.style.display = 'block'; tooltip.textContent = tip;
+    tooltip.style.left = (e.clientX + 14) + 'px'; tooltip.style.top = (e.clientY - 10) + 'px';
   } else { tooltip.style.display = 'none'; }
 });
 
-// ═══════════════════════════════════════
-//  PANEL / HODINY / LOG
-// ═══════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+//  PANEL / CLOCK / LOG
+// ═══════════════════════════════════════════════════════════
 
 function updatePanel() {
   const active = trains.filter(t => t.active);
@@ -803,15 +1134,14 @@ function log(msg, cls = '') {
   if (lines.length > 200) c.innerHTML = lines.slice(0, 200).join('<br>');
 }
 
-// ═══════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 //  LOOP
-// ═══════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 
 function gameLoop() { update(); draw(); requestAnimationFrame(gameLoop); }
 
-log('JOP v3.1 — dvě stanice, vysoký kontrast.', 'info');
-log('Stanice: Zelená Lhota ↔ Skalná', 'info');
-log('Klik na návěstidlo/výhybku = přepnout stav.', 'dim');
+log('JOP v3.2 — dvě stanice + výukový režim.', 'info');
+log('Klikněte 📖 Výukový režim pro průvodce ovládáním.', 'tut');
 gameLoop();
 </script>
 </body>

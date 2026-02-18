@@ -4,9 +4,9 @@
       "jmeno": "FIKTIVOV HL.N.",
       "koleje": [
         {"id": "K1", "x1": 50, "y1": 250, "x2": 250, "y2": 250, "occupied": false},
-        {"id": "K2_přímo", "x1": 250, "y1": 250, "x2": 600, "y2": 250, "occupied": false},
-        {"id": "K2_odb", "x1": 250, "y1": 250, "x2": 500, "y2": 100, "occupied": false},
-        {"id": "K3_přímo", "x1": 600, "y1": 250, "x2": 950, "y2": 250, "occupied": false}
+        {"id": "K2_p", "x1": 250, "y1": 250, "x2": 600, "y2": 250, "occupied": false},
+        {"id": "K2_o", "x1": 250, "y1": 250, "x2": 500, "y2": 100, "occupied": false},
+        {"id": "K3", "x1": 600, "y1": 250, "x2": 950, "y2": 250, "occupied": false}
       ],
       "vyhybky": [
         {"id": "W1", "x": 250, "y": 250, "state": 0, "targets": [[600, 250], [500, 100]]}
@@ -20,4 +20,3 @@
     }
   ]
 }
-

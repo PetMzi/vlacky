@@ -1,23 +1,27 @@
-// --- VYLEPŠENÁ DETEKCE KLIKNUTÍ ---
-canvas.addEventListener('click', (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-
-    // Klik na návěstidlo (zvětšená zóna na 25 pixelů)
-    data.stanice[0].navestidla.forEach(n => {
-        const dist = Math.hypot(mx - n.x, my - (n.y - 20));
-        if(dist < 25) { 
-            // Kontrola obsazenosti před postavením
-            const isBlocked = data.stanice[0].koleje.some(k => k.occupied && k.x1 >= n.x);
-            if (n.state === "stoj" && isBlocked) {
-                log(`NELZE POSTAVIT: Úsek za návěstidlem ${n.id} je obsazen!`);
-            } else {
-                n.state = (n.state === "stoj") ? "volno" : "stoj";
-                log(`Návěstidlo ${n.id} přepnuto na ${n.state.toUpperCase()}.`);
-            }
-        }
-    });
-
-    // ... (zbytek kódu pro výhybky zůstává)
-});
+{
+  "stanice": [
+    {
+      "jmeno": "DISPEČERSKÝ OKRSEK: SEVER",
+      "koleje": [
+        {"id": "F_K1", "x1": 50, "y1": 250, "x2": 250, "y2": 250, "occupied": false},
+        {"id": "Spojka_1", "x1": 250, "y1": 250, "x2": 500, "y2": 250, "occupied": false},
+        {"id": "Lhota_K1", "x1": 500, "y1": 250, "x2": 700, "y2": 250, "occupied": false},
+        {"id": "Lhota_Odb", "x1": 500, "y1": 250, "x2": 650, "y2": 150, "occupied": false},
+        {"id": "Prumysl_K1", "x1": 700, "y1": 250, "x2": 950, "y2": 250, "occupied": false},
+        {"id": "Prumysl_Vl", "x1": 650, "y1": 150, "x2": 900, "y2": 150, "occupied": false}
+      ],
+      "vyhybky": [
+        {"id": "W1_Fiktivov", "x": 250, "y": 250, "state": 0, "targets": [[500, 250], [400, 100]]},
+        {"id": "W2_Lhota", "x": 500, "y": 250, "state": 0, "targets": [[700, 250], [650, 150]]}
+      ],
+      "navestidla": [
+        {"id": "S1_F", "x": 100, "y": 250, "state": "stoj"},
+        {"id": "S2_L", "x": 450, "y": 250, "state": "stoj"},
+        {"id": "S3_P", "x": 650, "y": 250, "state": "stoj"}
+      ],
+      "vlaky": [
+        {"id": "Os 4712", "x": 50, "y": 250, "speed": 1.2, "active": false, "targetX": 950}
+      ]
+    }
+  ]
+}

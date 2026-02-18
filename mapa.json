@@ -1,26 +1,28 @@
 {
   "stanice": [
     {
-      "jmeno": "DISPEČERSKÝ OKRSEK: SEVER",
+      "jmeno": "BOHUMÍN - CENTRÁLNÍ DISPEČINK",
       "koleje": [
-        {"id": "Vjezd_Zapad", "x1": 0, "y1": 250, "x2": 250, "y2": 250},
-        {"id": "Spojka_Stred", "x1": 250, "y1": 250, "x2": 750, "y2": 250},
-        {"id": "Vjezd_Vychod", "x1": 750, "y1": 250, "x2": 1000, "y2": 250},
-        {"id": "Lhota_Odbocka", "x1": 500, "y1": 250, "x2": 700, "y2": 100},
-        {"id": "Prumysl_Vlecka", "x1": 700, "y1": 100, "x2": 1000, "y2": 100}
+        {"id": "Od_Ostravy", "x1": 0, "y1": 250, "x2": 200, "y2": 250},
+        {"id": "Nastupiste_1", "x1": 400, "y1": 200, "x2": 700, "y2": 200},
+        {"id": "Nastupiste_2", "x1": 400, "y1": 250, "x2": 700, "y2": 250},
+        {"id": "Nastupiste_3", "x1": 400, "y1": 300, "x2": 700, "y2": 300},
+        {"id": "Smer_Polsko", "x1": 850, "y1": 150, "x2": 1000, "y2": 150},
+        {"id": "Smer_Slovensko", "x1": 850, "y1": 350, "x2": 1000, "y2": 350}
       ],
       "vyhybky": [
-        {"id": "W1_Fiktivov", "x": 250, "y": 250, "state": 0, "targets": [[500, 250], [400, 150]]},
-        {"id": "W2_Lhota", "x": 500, "y": 250, "state": 0, "targets": [[750, 250], [700, 100]]}
+        {"id": "Zhlavi_Zapad", "x": 250, "y": 250, "state": 1, "targets": [[400, 200], [400, 250], [400, 300]]},
+        {"id": "Zhlavi_Vychod", "x": 750, "y": 250, "state": 0, "targets": [[850, 150], [850, 350]]}
       ],
       "navestidla": [
-        {"id": "S1_Zapad", "x": 150, "y": 250, "state": "stoj", "dir": 1},
-        {"id": "S2_Stred", "x": 480, "y": 250, "state": "stoj", "dir": 1},
-        {"id": "S3_Vychod", "x": 850, "y": 250, "state": "stoj", "dir": -1}
+        {"id": "Vjezd_L", "x": 100, "y": 250, "state": "stoj", "dir": 1},
+        {"id": "Odjezd_S1", "x": 720, "y": 200, "state": "stoj", "dir": 1},
+        {"id": "Odjezd_S2", "x": 720, "y": 250, "state": "stoj", "dir": 1},
+        {"id": "Vjezd_P", "x": 900, "y": 150, "state": "stoj", "dir": -1}
       ],
       "vlaky": [
-        {"id": "Os 4712", "x": -50, "y": 250, "speed": 1.2, "active": false, "targetX": 1050, "dir": 1, "color": "#ffff00"},
-        {"id": "R 621", "x": 1050, "y": 250, "speed": 1.5, "active": false, "targetX": -50, "dir": -1, "color": "#00ffff"}
+        {"id": "SC 506 Pendolino", "x": -100, "y": 250, "speed": 2.0, "active": false, "targetX": 1100, "dir": 1, "color": "#cbd5e1"},
+        {"id": "Nex 45210", "x": 1100, "y": 150, "speed": 1.0, "active": false, "targetX": -100, "dir": -1, "color": "#16a34a"}
       ]
     }
   ]

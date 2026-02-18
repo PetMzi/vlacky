@@ -78,38 +78,49 @@
     }
 
     function update() {
-        if(!data) return;
-        const s = data.stanice[0];
+    if(!data) return;
+    const s = data.stanice[0];
 
-        s.vlaky.forEach(v => {
-            if(!v.active) return;
+    s.vlaky.forEach(v => {
+        if(!v.active) return;
 
-            // Kontrola návěstidla před vlakem
-            const signal = s.navestidla.find(n => v.x < n.x && n.x < v.x + 30);
-            if(signal && signal.state === "stoj") {
-                v.currentSpeed = 0; // Červená - vlak stojí
-            } else {
-                v.currentSpeed = v.speed;
-                if(signal && signal.state === "volno") {
-                    signal.state = "stoj"; // Projetí návěstidla - shození na stůj
-                    log(`Vlak ${v.id} projel návěstidlo ${signal.id}.`);
-                }
+        // Najdeme návěstidlo, které je TĚSNĚ PŘED vlakem
+        // Přidali jsme rezervu +5 pixelů, aby vlak nebrzdil sám sebe
+        const signal = s.navestidla.find(n => v.x < n.x - 5 && n.x < v.x + 20);
+        
+        if(signal && signal.state === "stoj") {
+            v.currentSpeed = 0; 
+        } else {
+            v.currentSpeed = v.speed;
+            
+            // Shození návěstidla nastane, až když ho čelo vlaku mine (v.x > n.x)
+            if(signal && signal.state === "volno" && v.x > signal.x) {
+                signal.state = "stoj";
+                log(`Vlak ${v.id} projel návěstidlo ${signal.id} a to se uzavřelo.`);
             }
+        }
 
-            v.x += v.currentSpeed;
+        v.x += v.currentSpeed;
+        
+        // --- LOGIKA VÝHYBEK (vylepšená) ---
+        // Výhybka W1_Fiktivov (na x=250)
+        if(v.x > 240 && v.x < 260) {
+            const w1 = s.vyhybky.find(w => w.id === "W1_Fiktivov");
+            v.targetY = (w1.state === 0) ? 250 : 100;
+        }
+        // Výhybka W2_Lhota (na x=500)
+        if(v.x > 490 && v.x < 510) {
+            const w2 = s.vyhybky.find(w => w.id === "W2_Lhota");
+            v.targetY = (w2.state === 0) ? 250 : 150;
+        }
 
-            // Dynamická změna Y podle výhybky W1
-            if(v.x > 250 && v.x < 260) {
-                const w1 = s.vyhybky.find(w => w.id === "W1");
-                v.targetY = (w1.state === 0) ? 250 : 100;
-            }
-            if(v.targetY) {
-                v.y += (v.targetY - v.y) * 0.1;
-            }
+        if(v.targetY) {
+            v.y += (v.targetY - v.y) * 0.1;
+        }
 
-            if(v.x > v.targetX) v.active = false;
-        });
-    }
+        if(v.x > v.targetX) v.active = false;
+    });
+}
 
     function spawnTrain() {
         const v = data.stanice[0].vlaky[0];

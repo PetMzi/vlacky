@@ -1,13 +1,15 @@
 {
   "stanice": [
     {
-      "jmeno": "Fiktivov",
+      "jmeno": "FIKTIVOV HL.N.",
       "koleje": [
-        {"id": "K1", "x1": 50, "y1": 200, "x2": 250, "y2": 200},
-        {"id": "K2", "x1": 550, "y1": 200, "x2": 750, "y2": 200}
+        {"id": "Vjezd_A", "x1": 50, "y1": 250, "x2": 200, "y2": 250, "occupied": false},
+        {"id": "K1_stred", "x1": 500, "y1": 250, "x2": 800, "y2": 250, "occupied": true},
+        {"id": "K2_horni", "x1": 500, "y1": 150, "x2": 800, "y2": 150, "occupied": false}
       ],
       "vyhybky": [
-        {"id": "W1", "x": 250, "y": 200, "cil_prip": [550, 200], "cil_odb": [400, 100]}
+        {"id": "W1", "x": 200, "y": 250, "state": 0, "cil_prip": [500, 250], "cil_odb": [400, 150]},
+        {"id": "W2", "x": 400, "y": 150, "state": 0, "cil_prip": [500, 150], "cil_odb": [500, 100]}
       ]
     }
   ]

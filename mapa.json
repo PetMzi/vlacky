@@ -3,24 +3,24 @@
     {
       "jmeno": "DISPEČERSKÝ OKRSEK: SEVER",
       "koleje": [
-        {"id": "F_K1", "x1": 50, "y1": 250, "x2": 250, "y2": 250, "occupied": false},
-        {"id": "Spojka_1", "x1": 250, "y1": 250, "x2": 500, "y2": 250, "occupied": false},
-        {"id": "Lhota_K1", "x1": 500, "y1": 250, "x2": 700, "y2": 250, "occupied": false},
-        {"id": "Lhota_Odb", "x1": 500, "y1": 250, "x2": 650, "y2": 150, "occupied": false},
-        {"id": "Prumysl_K1", "x1": 700, "y1": 250, "x2": 950, "y2": 250, "occupied": false},
-        {"id": "Prumysl_Vl", "x1": 650, "y1": 150, "x2": 900, "y2": 150, "occupied": false}
+        {"id": "Vjezd_Zapad", "x1": 0, "y1": 250, "x2": 250, "y2": 250},
+        {"id": "Spojka_Stred", "x1": 250, "y1": 250, "x2": 750, "y2": 250},
+        {"id": "Vjezd_Vychod", "x1": 750, "y1": 250, "x2": 1000, "y2": 250},
+        {"id": "Lhota_Odbocka", "x1": 500, "y1": 250, "x2": 700, "y2": 100},
+        {"id": "Prumysl_Vlecka", "x1": 700, "y1": 100, "x2": 1000, "y2": 100}
       ],
       "vyhybky": [
-        {"id": "W1_Fiktivov", "x": 250, "y": 250, "state": 0, "targets": [[500, 250], [400, 100]]},
-        {"id": "W2_Lhota", "x": 500, "y": 250, "state": 0, "targets": [[700, 250], [650, 150]]}
+        {"id": "W1_Fiktivov", "x": 250, "y": 250, "state": 0, "targets": [[500, 250], [400, 150]]},
+        {"id": "W2_Lhota", "x": 500, "y": 250, "state": 0, "targets": [[750, 250], [700, 100]]}
       ],
       "navestidla": [
-        {"id": "S1_F", "x": 100, "y": 250, "state": "stoj"},
-        {"id": "S2_L", "x": 450, "y": 250, "state": "stoj"},
-        {"id": "S3_P", "x": 650, "y": 250, "state": "stoj"}
+        {"id": "S1_Zapad", "x": 150, "y": 250, "state": "stoj", "dir": 1},
+        {"id": "S2_Stred", "x": 480, "y": 250, "state": "stoj", "dir": 1},
+        {"id": "S3_Vychod", "x": 850, "y": 250, "state": "stoj", "dir": -1}
       ],
       "vlaky": [
-        {"id": "Os 4712", "x": 50, "y": 250, "speed": 1.2, "active": false, "targetX": 950}
+        {"id": "Os 4712", "x": -50, "y": 250, "speed": 1.2, "active": false, "targetX": 1050, "dir": 1, "color": "#ffff00"},
+        {"id": "R 621", "x": 1050, "y": 250, "speed": 1.5, "active": false, "targetX": -50, "dir": -1, "color": "#00ffff"}
       ]
     }
   ]

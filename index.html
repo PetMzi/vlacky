@@ -2,88 +2,23 @@
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JOP Bohumín - Centrální Dispečink</title>
+    <title>JOP Bohumín - Simulátor</title>
     <style>
-        :root { 
-            --bg: #050505; 
-            --panel: #111; 
-            --green: #00ff41; 
-            --red: #ff3e3e; 
-            --track: #333; 
-            --text: #00ff41;
-        }
-        body { 
-            background: var(--bg); 
-            color: var(--text); 
-            font-family: 'Consolas', 'Courier New', monospace; 
-            margin: 0; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-        }
-        #header { 
-            width: 100%; 
-            padding: 15px; 
-            background: var(--panel); 
-            border-bottom: 2px solid #222; 
-            text-align: center; 
-            font-weight: bold;
-            letter-spacing: 2px;
-        }
-        canvas { 
-            background: #000; 
-            border: 2px solid #222; 
-            margin-top: 20px; 
-            box-shadow: 0 0 30px rgba(0, 255, 65, 0.1); 
-            cursor: crosshair;
-        }
-        #ui-container { 
-            width: 1000px; 
-            margin-top: 15px; 
-            display: flex; 
-            gap: 10px; 
-        }
-        #console { 
-            flex: 3; 
-            height: 120px; 
-            background: #000; 
-            border: 1px solid #222; 
-            padding: 10px; 
-            font-size: 0.85rem; 
-            overflow-y: auto; 
-            color: #888; 
-            line-height: 1.4;
-        }
-        .controls { 
-            flex: 1; 
-            display: flex; 
-            flex-direction: column; 
-            gap: 10px; 
-        }
-        button { 
-            padding: 12px; 
-            background: var(--green); 
-            color: black; 
-            border: none; 
-            font-weight: bold; 
-            cursor: pointer; 
-            text-transform: uppercase;
-        }
-        button:hover { background: #00cc33; }
+        body { background: #050505; color: #00ff41; font-family: 'Consolas', monospace; margin: 0; display: flex; flex-direction: column; align-items: center; }
+        #pult { width: 1000px; padding: 10px; background: #111; border-bottom: 2px solid #333; text-align: center; font-weight: bold; }
+        canvas { background: #000; border: 1px solid #222; margin-top: 20px; box-shadow: 0 0 20px rgba(0,255,65,0.1); }
+        #console { width: 980px; height: 140px; background: #000; border: 1px solid #333; margin-top: 10px; padding: 10px; font-size: 0.8rem; overflow-y: auto; color: #888; }
+        .controls { margin-top: 10px; }
+        button { padding: 12px 24px; background: #00ff41; color: black; border: none; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
 
-<div id="header">JEDNOTNÉ OBSLUŽNÉ PRACOVIŠTĚ: <span id="st-name">BOHUMÍN</span></div>
-
-<canvas id="jopCanvas" width="1000" height="500"></canvas>
-
-<div id="ui-container">
-    <div id="console">>> Systém inicializován. Čekám na data o uzlu...</div>
-    <div class="controls">
-        <button onclick="spawnTrains()">VYPLATIT PROVOZ</button>
-    </div>
+<div id="pult">JOP BOHUMÍN - CENTRÁLNÍ DISPEČINK</div>
+<canvas id="jopCanvas" width="1000" height="450"></canvas>
+<div id="console">>> Inicializace Bohumína...</div>
+<div class="controls">
+    <button onclick="spawn()">VYPLATIT PROVOZ</button>
 </div>
 
 <script>
@@ -91,18 +26,13 @@
     const ctx = canvas.getContext('2d');
     let data = null;
 
-    // --- INICIALIZACE ---
     async function init() {
         try {
             const res = await fetch('./mapa.json');
-            if (!res.ok) throw new Error("Nelze nalézt mapa.json");
             data = await res.json();
-            document.getElementById('st-name').innerText = data.stanice[0].jmeno;
-            log("Mapa Bohumína načtena. Nastavte cestu na zhlaví a rozsviťte návěstidla.");
+            log("Systém ONLINE. Připravte vjezdové cesty.");
             gameLoop();
-        } catch (e) { 
-            log("CHYBA: Soubor mapa.json nebyl načten! Zkontrolujte název a formát."); 
-        }
+        } catch (e) { log("CHYBA: mapa.json nenalezena!"); }
     }
 
     function log(msg) {
@@ -110,131 +40,99 @@
         c.innerHTML = `> ${msg}<br>` + c.innerHTML;
     }
 
-    // --- VYKRESLOVÁNÍ ---
     function draw() {
         if(!data) return;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         const s = data.stanice[0];
 
-        // 1. Koleje
         s.koleje.forEach(k => {
             ctx.strokeStyle = "#222"; ctx.lineWidth = 4;
             ctx.beginPath(); ctx.moveTo(k.x1, k.y1); ctx.lineTo(k.x2, k.y2); ctx.stroke();
         });
 
-        // 2. Výhybky (Zhlaví)
         s.vyhybky.forEach(w => {
             const target = w.targets[w.state];
-            ctx.strokeStyle = "#fff"; ctx.lineWidth = 4;
-            ctx.beginPath(); ctx.moveTo(w.x, w.y); ctx.lineTo(target[0], target[1]); ctx.stroke();
-            // Střed výhybky (ovládací bod)
+            ctx.strokeStyle = "#fff"; ctx.beginPath(); ctx.moveTo(w.x, w.y); ctx.lineTo(target[0], target[1]); ctx.stroke();
             ctx.fillStyle = "#ffaa00"; ctx.beginPath(); ctx.arc(w.x, w.y, 6, 0, 7); ctx.fill();
         });
 
-        // 3. Návěstidla
         s.navestidla.forEach(n => {
             ctx.fillStyle = (n.state === "volno") ? "#00ff00" : "#ff0000";
             ctx.shadowBlur = 10; ctx.shadowColor = ctx.fillStyle;
             ctx.beginPath(); ctx.arc(n.x, n.y - 20, 8, 0, 7); ctx.fill();
             ctx.shadowBlur = 0;
-            ctx.fillStyle = "#fff"; ctx.font = "bold 10px Arial";
-            ctx.fillText(n.id, n.x - 15, n.y - 35);
+            ctx.fillStyle = "#fff"; ctx.fillText(n.id, n.x - 15, n.y - 35);
         });
 
-        // 4. Vlaky
         s.vlaky.forEach(v => {
             if(!v.active) return;
             ctx.fillStyle = v.color;
-            ctx.fillRect(v.x - 25, v.y - 10, 50, 20);
-            ctx.fillStyle = "#000"; ctx.font = "bold 10px Arial";
-            ctx.fillText(v.id, v.x - 22, v.y + 4);
+            ctx.fillRect(v.x - 20, v.y - 10, 40, 20);
+            ctx.fillStyle = "#000"; ctx.font = "bold 9px Arial";
+            ctx.fillText(v.id, v.x - 18, v.y + 3);
         });
     }
 
-    // --- FYZIKA A POHYB ---
     function update() {
         if(!data) return;
         const s = data.stanice[0];
-        
         s.vlaky.forEach(v => {
             if(!v.active) return;
-
             let canGo = true;
-            s.navestidla.forEach(n => {
-                // Detekce návěstidla před vlakem (směr vpravo)
-                if(v.dir === 1 && v.x < n.x - 5 && v.x > n.x - 40 && n.state === "stoj") canGo = false;
-                // Detekce návěstidla před vlakem (směr vlevo)
-                if(v.dir === -1 && v.x > n.x + 5 && v.x < n.x + 40 && n.state === "stoj") canGo = false;
 
-                // Automatické shození návěstidla po průjezdu čela vlaku
-                if(n.state === "volno" && Math.abs(v.x - n.x) < 10) {
+            s.navestidla.forEach(n => {
+                // Vlak doprava (dir 1) zastaví před návěstidlem
+                if(v.dir === 1 && v.x < n.x - 10 && v.x > n.x - 45 && n.state === "stoj") canGo = false;
+                // Vlak doleva (dir -1) zastaví před návěstidlem
+                if(v.dir === -1 && v.x > n.x + 10 && v.x < n.x + 45 && n.state === "stoj") canGo = false;
+
+                // Shození návěstidla
+                if(n.state === "volno" && Math.abs(v.x - n.x) < 5) {
                     n.state = "stoj";
-                    log(`Vlak ${v.id} projel za návěstidlo ${n.id}.`);
+                    log(`Vlak ${v.id} v obvodu výhybek.`);
                 }
             });
 
-            if(canGo) {
-                v.x += v.speed * v.dir;
-            }
+            if(canGo) v.x += v.speed * v.dir;
 
-            // --- LOGIKA BOHUMÍNSKÝCH ZHLAVÍ ---
-            // Západní zhlaví (u x=250)
-            if(v.dir === 1 && v.x > 240 && v.x < 260) {
-                v.tY = s.vyhybky[0].targets[s.vyhybky[0].state][1];
-            }
-            // Východní zhlaví (u x=750)
-            if(v.dir === 1 && v.x > 740 && v.x < 760) {
-                v.tY = s.vyhybky[1].targets[s.vyhybky[1].state][1];
-            }
-            // Návrat do roviny pro vlaky jedoucí vlevo
-            if(v.dir === -1 && v.x < 260 && v.x > 240) v.tY = 250;
+            // Logika Bohumínských zhlaví
+            if(v.dir === 1 && v.x > 290 && v.x < 310) v.tY = s.vyhybky[0].targets[s.vyhybky[0].state][1];
+            if(v.dir === 1 && v.x > 790 && v.x < 810) v.tY = s.vyhybky[1].targets[s.vyhybky[1].state][1];
+            if(v.dir === -1 && v.x < 310 && v.x > 290) v.tY = 250;
 
-            if(v.tY) v.y += (v.tY - v.y) * 0.05; // Plynulé přejíždění mezi kolejemi
-
-            // Deaktivace vlaku mimo obrazovku
-            if((v.dir === 1 && v.x > 1150) || (v.dir === -1 && v.x < -150)) v.active = false;
+            if(v.tY) v.y += (v.tY - v.y) * 0.06;
+            if(v.x > 1100 || v.x < -100) v.active = false;
         });
     }
 
-    // --- OVLÁDÁNÍ ---
-    function spawnTrains() {
+    function spawn() {
         if(!data) return;
         data.stanice[0].vlaky.forEach(v => {
-            if (v.dir === 1) { v.x = -100; v.y = 250; v.tY = 250; }
-            else { v.x = 1100; v.y = 150; v.tY = 150; }
-            v.active = true;
+            v.x = (v.dir === 1) ? -50 : 1050;
+            v.y = (v.dir === 1) ? 250 : 150;
+            v.active = true; v.tY = v.y;
         });
-        log("PROVOZ ZAHÁJEN: Pendolino od Ostravy, nákladní Nex od Polska.");
+        log("PROVOZ ZAHÁJEN: Pendolino od Ostravy, Náklad od Polska.");
     }
 
     canvas.addEventListener('click', (e) => {
         const rect = canvas.getBoundingClientRect();
-        const mx = e.clientX - rect.left;
-        const my = e.clientY - rect.top;
-        
-        // Přepínání výhybek (cyklování směrů)
+        const mx = e.clientX - rect.left, my = e.clientY - rect.top;
         data.stanice[0].vyhybky.forEach(w => {
             if(Math.hypot(mx-w.x, my-w.y) < 25) {
                 w.state = (w.state + 1) % w.targets.length;
-                log(`Zhlaví ${w.id} přestaveno na směr ${w.state + 1}.`);
+                log(`Výhybka ${w.id} -> směr ${w.state + 1}`);
             }
         });
-
-        // Přepínání návěstidel
         data.stanice[0].navestidla.forEach(n => {
             if(Math.hypot(mx-n.x, my-(n.y-20)) < 25) {
                 n.state = (n.state === "stoj") ? "volno" : "stoj";
-                log(`Návěstidlo ${n.id} -> ${n.state.toUpperCase()}`);
+                log(`Návěstidlo ${n.id} přepnuto.`);
             }
         });
     });
 
-    function gameLoop() {
-        update();
-        draw();
-        requestAnimationFrame(gameLoop);
-    }
-
+    function gameLoop() { update(); draw(); requestAnimationFrame(gameLoop); }
     init();
 </script>
 </body>

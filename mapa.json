@@ -1,21 +1,26 @@
 {
   "stanice": [
     {
-      "jmeno": "FIKTIVOV HL.N.",
+      "jmeno": "DISPEČERSKÝ OKRSEK: SEVER",
       "koleje": [
-        {"id": "K1", "x1": 50, "y1": 250, "x2": 250, "y2": 250, "occupied": false},
-        {"id": "K2_p", "x1": 250, "y1": 250, "x2": 600, "y2": 250, "occupied": false},
-        {"id": "K2_o", "x1": 250, "y1": 250, "x2": 500, "y2": 100, "occupied": false},
-        {"id": "K3", "x1": 600, "y1": 250, "x2": 950, "y2": 250, "occupied": false}
+        {"id": "F_K1", "x1": 50, "y1": 250, "x2": 250, "y2": 250, "occupied": false},
+        {"id": "Spojka_1", "x1": 250, "y1": 250, "x2": 500, "y2": 250, "occupied": false},
+        {"id": "Lhota_K1", "x1": 500, "y1": 250, "x2": 700, "y2": 250, "occupied": false},
+        {"id": "Lhota_Odbočka", "x1": 500, "y1": 250, "x2": 650, "y2": 150, "occupied": false},
+        {"id": "Průmysl_K1", "x1": 700, "y1": 250, "x2": 950, "y2": 250, "occupied": false},
+        {"id": "Průmysl_Vlečka", "x1": 650, "y1": 150, "x2": 900, "y2": 150, "occupied": false}
       ],
       "vyhybky": [
-        {"id": "W1", "x": 250, "y": 250, "state": 0, "targets": [[600, 250], [500, 100]]}
+        {"id": "W1_Fiktivov", "x": 250, "y": 250, "state": 0, "targets": [[500, 250], [400, 100]]},
+        {"id": "W2_Lhota", "x": 500, "y": 250, "state": 0, "targets": [[700, 250], [650, 150]]}
       ],
       "navestidla": [
-        {"id": "S1", "x": 100, "y": 250, "state": "stoj"}
+        {"id": "S1_F", "x": 100, "y": 250, "state": "stoj"},
+        {"id": "S2_L", "x": 450, "y": 250, "state": "stoj"},
+        {"id": "S3_P", "x": 650, "y": 250, "state": "stoj"}
       ],
       "vlaky": [
-        {"id": "Os 4712", "x": 50, "y": 250, "speed": 1.5, "active": false, "targetX": 950}
+        {"id": "Os 4712", "x": 50, "y": 250, "speed": 1.2, "active": false, "targetX": 950}
       ]
     }
   ]

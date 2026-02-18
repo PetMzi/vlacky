@@ -25,12 +25,16 @@
 
     async function init() {
         try {
-            const res = await fetch('mapa.json');
+            // Přidána tečka pro lepší hledání na GitHub Pages
+            const res = await fetch('./mapa.json');
+            if (!res.ok) throw new Error("Soubor nenalezen");
             data = await res.json();
             document.getElementById('st-name').innerText = data.stanice[0].jmeno;
-            log("Mapa načtena. Klikni na návěstidlo pro povolení jízdy.");
+            log("Mapa úspěšně načtena.");
             gameLoop();
-        } catch (e) { log("Chyba načítání mapa.json!"); }
+        } catch (e) { 
+            log("Chyba načítání mapa.json! Zkontroluj název souboru."); 
+        }
     }
 
     function log(msg) {
@@ -39,17 +43,16 @@
     }
 
     function draw() {
+        if(!data) return;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         const s = data.stanice[0];
 
-        // 1. Koleje
         s.koleje.forEach(k => {
-            ctx.strokeStyle = k.occupied ? "#ff3e3e" : "#333";
+            ctx.strokeStyle = "#333";
             ctx.lineWidth = 4;
             ctx.beginPath(); ctx.moveTo(k.x1, k.y1); ctx.lineTo(k.x2, k.y2); ctx.stroke();
         });
 
-        // 2. Výhybky
         s.vyhybky.forEach(w => {
             const activePos = w.targets[w.state];
             ctx.strokeStyle = "#fff";
@@ -58,92 +61,68 @@
             ctx.beginPath(); ctx.arc(w.x, w.y, 5, 0, 7); ctx.fill();
         });
 
-        // 3. Návěstidla
         s.navestidla.forEach(n => {
             ctx.fillStyle = (n.state === "volno") ? "#00ff00" : "#ff0000";
-            ctx.shadowBlur = 10; ctx.shadowColor = ctx.fillStyle;
-            ctx.beginPath(); ctx.arc(n.x, n.y - 20, 6, 0, 7); ctx.fill();
-            ctx.shadowBlur = 0;
-            ctx.fillStyle = "#fff"; ctx.fillText(n.id, n.x - 10, n.y - 30);
+            ctx.beginPath(); ctx.arc(n.x, n.y - 20, 8, 0, 7); ctx.fill();
+            ctx.fillStyle = "#fff"; ctx.fillText(n.id, n.x - 10, n.y - 35);
         });
 
-        // 4. Vlaky
         s.vlaky.forEach(v => {
             if(!v.active) return;
             ctx.fillStyle = "#ffff00";
             ctx.fillRect(v.x - 15, v.y - 8, 30, 16);
-            ctx.fillStyle = "#000"; ctx.font = "9px Arial";
-            ctx.fillText(v.id, v.x - 14, v.y + 3);
+            ctx.fillStyle = "#000"; ctx.fillText(v.id, v.x - 14, v.y + 3);
         });
     }
 
     function update() {
-    if(!data) return;
-    const s = data.stanice[0];
-
-    s.vlaky.forEach(v => {
-        if(!v.active) return;
-
-        // Najdeme návěstidlo, které je TĚSNĚ PŘED vlakem
-        // Přidali jsme rezervu +5 pixelů, aby vlak nebrzdil sám sebe
-        const signal = s.navestidla.find(n => v.x < n.x - 5 && n.x < v.x + 20);
-        
-        if(signal && signal.state === "stoj") {
-            v.currentSpeed = 0; 
-        } else {
-            v.currentSpeed = v.speed;
+        if(!data) return;
+        const s = data.stanice[0];
+        s.vlaky.forEach(v => {
+            if(!v.active) return;
+            // Detekce návěstidla s rezervou, aby vlak hned "nezamrzl"
+            const signal = s.navestidla.find(n => v.x < n.x - 10 && n.x < v.x + 30);
             
-            // Shození návěstidla nastane, až když ho čelo vlaku mine (v.x > n.x)
-            if(signal && signal.state === "volno" && v.x > signal.x) {
-                signal.state = "stoj";
-                log(`Vlak ${v.id} projel návěstidlo ${signal.id} a to se uzavřelo.`);
+            if(signal && signal.state === "stoj") {
+                v.currentSpeed = 0;
+            } else {
+                v.currentSpeed = v.speed;
+                if(signal && signal.state === "volno" && v.x > signal.x) {
+                    signal.state = "stoj";
+                    log(`Vlak ${v.id} projel ${signal.id}.`);
+                }
             }
-        }
-
-        v.x += v.currentSpeed;
-        
-        // --- LOGIKA VÝHYBEK (vylepšená) ---
-        // Výhybka W1_Fiktivov (na x=250)
-        if(v.x > 240 && v.x < 260) {
-            const w1 = s.vyhybky.find(w => w.id === "W1_Fiktivov");
-            v.targetY = (w1.state === 0) ? 250 : 100;
-        }
-        // Výhybka W2_Lhota (na x=500)
-        if(v.x > 490 && v.x < 510) {
-            const w2 = s.vyhybky.find(w => w.id === "W2_Lhota");
-            v.targetY = (w2.state === 0) ? 250 : 150;
-        }
-
-        if(v.targetY) {
-            v.y += (v.targetY - v.y) * 0.1;
-        }
-
-        if(v.x > v.targetX) v.active = false;
-    });
-}
+            v.x += v.currentSpeed;
+            // Průjezd výhybkami
+            if(v.x > 240 && v.x < 260) v.targetY = (s.vyhybky[0].state === 0) ? 250 : 100;
+            if(v.x > 490 && v.x < 510) v.targetY = (s.vyhybky[1].state === 0) ? 250 : 150;
+            if(v.targetY) v.y += (v.targetY - v.y) * 0.1;
+            if(v.x > v.targetX) v.active = false;
+        });
+    }
 
     function spawnTrain() {
+        if(!data) return;
         const v = data.stanice[0].vlaky[0];
         v.x = 50; v.y = 250; v.active = true; v.targetY = 250;
-        log(`Vlak ${v.id} je připraven k odjezdu.`);
+        log("Vlak Os 4712 vyjíždí ze stanice.");
     }
 
     canvas.addEventListener('click', (e) => {
         const rect = canvas.getBoundingClientRect();
         const mx = e.clientX - rect.left;
         const my = e.clientY - rect.top;
-
-        // Klik na výhybku
+        
+        // Klik na výhybky
         data.stanice[0].vyhybky.forEach(w => {
             if(Math.hypot(mx-w.x, my-w.y) < 20) {
                 w.state = w.state === 0 ? 1 : 0;
                 log(`Výhybka ${w.id} přestavena.`);
             }
         });
-
-        // Klik na návěstidlo
+        // Klik na návěstidla (míříme na kuličku nad kolejí)
         data.stanice[0].navestidla.forEach(n => {
-            if(Math.hypot(mx-n.x, my-(n.y-20)) < 15) {
+            if(Math.hypot(mx-n.x, my-(n.y-20)) < 20) {
                 n.state = (n.state === "stoj") ? "volno" : "stoj";
                 log(`Návěstidlo ${n.id} přepnuto.`);
             }
@@ -151,11 +130,8 @@
     });
 
     function gameLoop() {
-        update();
-        draw();
-        requestAnimationFrame(gameLoop);
+        update(); draw(); requestAnimationFrame(gameLoop);
     }
-
     init();
 </script>
 </body>
